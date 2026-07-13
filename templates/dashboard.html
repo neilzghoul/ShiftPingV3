@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}לוח בקרה · ShiftPing{% endblock %}
+{% block content %}
+<section class="hero-dash">
+  <div>
+    <p class="eyebrow">שבוע {{ week }}</p>
+    <h1>לוח בקרה</h1>
+    <p class="lede">ניהול עובדים, העדפות וסידור משמרות ב-WhatsApp.</p>
+  </div>
+  <div class="action-row">
+    <button class="btn btn-primary" data-action="seed">טען נתוני דוגמה</button>
+    <button class="btn" data-action="request-prefs">בקש העדפות ב-WhatsApp</button>
+    <button class="btn" data-action="generate">צור סידור אוטומטי</button>
+    <button class="btn btn-accent" data-action="publish">פרסם ב-WhatsApp</button>
+  </div>
+</section>
+
+<section class="stat-row" aria-label="סיכום">
+  <div class="stat">
+    <span class="stat-value">{{ employees|length }}</span>
+    <span class="stat-label">עובדים</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ submitted_count }}/{{ prefs_count or employees|length }}</span>
+    <span class="stat-label">העדפות הוגשו</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{% if schedule %}{{ 'פורסם' if schedule.published else 'טיוטה' }}{% else %}אין{% endif %}</span>
+    <span class="stat-label">סטטוס סידור</span>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>תצוגה מקדימה · שבוע {{ week }}</h2>
+    <a class="link" href="/schedule?week={{ week }}">פתח סידור מלא</a>
+  </div>
+  {% if schedule and schedule.enriched %}
+  <div class="paper-schedule compact">
+    <table>
+      <thead>
+        <tr>
+          <th>משמרת</th>
+          {% for day in days %}
+          <th>יום {{ day }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in shifts %}
+        <tr>
+          <th>{{ shift }}</th>
+          {% for day in days %}
+          <td>
+            {% for person in schedule.enriched[day][shift] %}
+            <div class="cell-name">{{ person.name }}</div>
+            {% else %}
+            <span class="muted">—</span>
+            {% endfor %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">עדיין אין סידור לשבוע זה. לחצו על «צור סידור אוטומטי».</p>
+  {% endif %}
+</section>
+
+<div id="toast" class="toast" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const action = btn.dataset.action;
+      btn.disabled = true;
+      try {
+        if (action === 'seed') {
+          const r = await api('POST', '/api/seed', { reset: false });
+          toast('נטענו ' + r.createdCount + ' עובדים חדשים (שבוע ' + r.weekId + ')');
+          setTimeout(() => location.reload(), 800);
+        } else if (action === 'request-prefs') {
+          const r = await api('POST', '/api/preferences/request', { weekId: {{ week|tojson }} });
+          toast('נשלחו ' + (r.results||[]).length + ' הודעות');
+        } else if (action === 'generate') {
+          const r = await api('POST', '/api/schedules/generate', { weekId: {{ week|tojson }} });
+          toast('סידור נוצר');
+          setTimeout(() => location.reload(), 600);
+        } else if (action === 'publish') {
+          if (!confirm('לפרסם את הסידור ב-WhatsApp לכל האחיות?')) return;
+          const r = await api('POST', '/api/schedules/' + encodeURIComponent({{ week|tojson }}) + '/publish', {});
+          toast('פורסם ל-' + (r.results||[]).length + ' עובדים');
+        }
+      } catch (e) {
+        toast(e.message || 'שגיאה', true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+{% endblock %}

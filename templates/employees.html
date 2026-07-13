@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}עובדים · ShiftPing{% endblock %}
+{% block content %}
+<section class="hero-dash">
+  <div>
+    <h1>עובדים</h1>
+    <p class="lede">הוספה, עריכה ומחיקה של אחיות ואחים.</p>
+  </div>
+  <button class="btn btn-primary" id="btn-add">הוסף עובד/ת</button>
+</section>
+
+<section class="panel">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>שם</th>
+        <th>מגדר</th>
+        <th>טלפון</th>
+        <th>סטטוס</th>
+        <th>הערות</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="emp-tbody">
+      {% for e in employees %}
+      <tr data-id="{{ e.id }}">
+        <td>{{ e.name }}</td>
+        <td>{{ 'נקבה' if e.gender == 'female' else 'זכר' }}</td>
+        <td dir="ltr">{{ e.phone }}</td>
+        <td>{{ 'פעיל/ה' if e.active else 'לא פעיל/ה' }}</td>
+        <td>{{ e.notes or '' }}</td>
+        <td class="row-actions">
+          <button class="btn btn-sm" data-edit="{{ e.id }}">עריכה</button>
+          <button class="btn btn-sm btn-danger" data-del="{{ e.id }}">מחיקה</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">אין עובדים. טענו נתוני דוגמה מהלוח הראשי.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<dialog id="emp-dialog">
+  <form method="dialog" id="emp-form" class="dialog-form">
+    <h2 id="dialog-title">עובד/ת חדש/ה</h2>
+    <input type="hidden" id="emp-id" />
+    <label>שם<input id="emp-name" required /></label>
+    <label>מגדר
+      <select id="emp-gender" required>
+        <option value="female">נקבה</option>
+        <option value="male">זכר</option>
+      </select>
+    </label>
+    <label>טלפון<input id="emp-phone" dir="ltr" required placeholder="+9725..." /></label>
+    <label>הערות<input id="emp-notes" /></label>
+    <label class="check"><input type="checkbox" id="emp-active" checked /> פעיל/ה</label>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn">ביטול</button>
+      <button value="save" class="btn btn-primary" id="emp-save">שמירה</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast" class="toast" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dialog = document.getElementById('emp-dialog');
+  const form = document.getElementById('emp-form');
+  const employees = {{ employees|tojson }};
+
+  document.getElementById('btn-add').onclick = () => {
+    document.getElementById('dialog-title').textContent = 'עובד/ת חדש/ה';
+    document.getElementById('emp-id').value = '';
+    document.getElementById('emp-name').value = '';
+    document.getElementById('emp-gender').value = 'female';
+    document.getElementById('emp-phone').value = '';
+    document.getElementById('emp-notes').value = '';
+    document.getElementById('emp-active').checked = true;
+    dialog.showModal();
+  };
+
+  document.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.onclick = () => {
+      const emp = employees.find(e => e.id === btn.dataset.edit);
+      if (!emp) return;
+      document.getElementById('dialog-title').textContent = 'עריכת עובד/ת';
+      document.getElementById('emp-id').value = emp.id;
+      document.getElementById('emp-name').value = emp.name;
+      document.getElementById('emp-gender').value = emp.gender;
+      document.getElementById('emp-phone').value = emp.phone;
+      document.getElementById('emp-notes').value = emp.notes || '';
+      document.getElementById('emp-active').checked = !!emp.active;
+      dialog.showModal();
+    };
+  });
+
+  document.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('למחוק עובד/ת?')) return;
+      try {
+        await api('DELETE', '/api/employees/' + btn.dataset.del);
+        toast('נמחק');
+        location.reload();
+      } catch (e) { toast(e.message, true); }
+    };
+  });
+
+  document.getElementById('emp-save').addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    const payload = {
+      name: document.getElementById('emp-name').value.trim(),
+      gender: document.getElementById('emp-gender').value,
+      phone: document.getElementById('emp-phone').value.trim(),
+      notes: document.getElementById('emp-notes').value.trim(),
+      active: document.getElementById('emp-active').checked,
+    };
+    const id = document.getElementById('emp-id').value;
+    try {
+      if (id) await api('PUT', '/api/employees/' + id, payload);
+      else await api('POST', '/api/employees', payload);
+      dialog.close();
+      location.reload();
+    } catch (e) { toast(e.message, true); }
+  });
+</script>
+{% endblock %}

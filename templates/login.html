@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>התחברות · ShiftPing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&family=Rubik:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+</head>
+<body class="login-body">
+  <div class="page-bg" aria-hidden="true"></div>
+  <div class="login-panel">
+    <div class="brand brand-lg">
+      <span class="brand-mark">SP</span>
+      <span class="brand-name">ShiftPing</span>
+    </div>
+    <p class="login-sub">מערכת סידור משמרות לאחיות</p>
+    {% if error %}
+    <p class="flash error">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/login" class="login-form">
+      <label for="token">אסימון מנהל</label>
+      <input id="token" name="token" type="password" required autocomplete="current-password" placeholder="הזינו אסימון" />
+      <input type="hidden" name="next" value="{{ request.args.get('next', '/') }}" />
+      <button type="submit" class="btn btn-primary">כניסה</button>
+    </form>
+  </div>
+</body>
+</html>

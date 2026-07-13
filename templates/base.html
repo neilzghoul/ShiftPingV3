@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}ShiftPing{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Rubik:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">SP</span>
+      <span class="brand-name">ShiftPing</span>
+    </a>
+    <nav class="nav">
+      <a href="/">לוח בקרה</a>
+      <a href="/employees">עובדים</a>
+      <a href="/preferences">העדפות</a>
+      <a href="/schedule">סידור</a>
+      <a href="/schedule/edit">עריכה</a>
+    </nav>
+  </header>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer">
+    <span>ShiftPing · ניהול משמרות אחיות</span>
+  </footer>
+  <script>
+    window.ADMIN_TOKEN = {{ admin_token|tojson if admin_token is defined else 'null' }};
+  </script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

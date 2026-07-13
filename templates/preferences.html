@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}העדפות · ShiftPing{% endblock %}
+{% block content %}
+<section class="hero-dash">
+  <div>
+    <p class="eyebrow">שבוע {{ week }}</p>
+    <h1>העדפות משמרות</h1>
+    <p class="lede">רוצה / יכול-ה / לא — כפי שנאספו ב-WhatsApp או ידנית.</p>
+  </div>
+  <button class="btn btn-primary" data-action="request-prefs">שלח בקשת העדפות</button>
+</section>
+
+<section class="panel">
+  {% if preferences %}
+  <div class="prefs-scroll">
+    <table class="data-table prefs-table">
+      <thead>
+        <tr>
+          <th>עובד/ת</th>
+          <th>הוגש</th>
+          {% for day in days %}
+            {% for shift in shifts %}
+            <th class="tiny">{{ day[0] }}·{{ shift[0] }}</th>
+            {% endfor %}
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in preferences %}
+        <tr>
+          <td>{{ p.employeeName }}</td>
+          <td>{{ 'כן' if p.submitted else 'לא' }}</td>
+          {% for day in days %}
+            {% for shift in shifts %}
+            {% set val = (p.grid.get(day) or {}).get(shift) %}
+            <td class="pref-{{ val or 'none' }}">{{ pref_labels.get(val, '·') if val else '·' }}</td>
+            {% endfor %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="legend">מקרא עמודות: אות ראשונה של יום · אות ראשונה של משמרת. צבעים: רוצה / יכול-ה / לא.</p>
+  {% else %}
+  <p class="empty">אין העדפות לשבוע זה עדיין.</p>
+  {% endif %}
+</section>
+<div id="toast" class="toast" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelector('[data-action="request-prefs"]')?.addEventListener('click', async (btn) => {
+    try {
+      const r = await api('POST', '/api/preferences/request', { weekId: {{ week|tojson }} });
+      toast('נשלחו ' + (r.results||[]).length + ' הודעות');
+    } catch (e) { toast(e.message, true); }
+  });
+</script>
+{% endblock %}

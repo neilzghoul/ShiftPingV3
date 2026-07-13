@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}{% if edit_mode %}עריכת סידור{% else %}סידור משמרות{% endif %} · ShiftPing{% endblock %}
+{% block content %}
+<section class="hero-dash">
+  <div>
+    <p class="eyebrow">שבוע {{ week }}</p>
+    <h1>{% if edit_mode %}עריכת סידור{% else %}סידור משמרות{% endif %}</h1>
+    <p class="lede">תצוגת נייר · ימים בעמודות · משמרות בשורות</p>
+  </div>
+  <div class="action-row">
+    {% if not edit_mode %}
+    <a class="btn" href="/schedule/edit?week={{ week }}">עריכה ידנית</a>
+    {% else %}
+    <button class="btn btn-primary" id="btn-save">שמור שינויים</button>
+    <a class="btn" href="/schedule?week={{ week }}">תצוגה</a>
+    {% endif %}
+    <button class="btn btn-accent" id="btn-publish">פרסם ב-WhatsApp</button>
+  </div>
+</section>
+
+{% if schedule and schedule.warnings %}
+<section class="warnings">
+  <strong>אזהרות:</strong>
+  <ul>
+    {% for w in schedule.warnings %}
+    <li>{{ w }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="paper-wrap">
+  <div class="paper-schedule" id="schedule-board"
+       data-week="{{ week }}"
+       data-edit="{{ '1' if edit_mode else '0' }}">
+    <div class="paper-title">
+      <span>סידור משמרות</span>
+      <span class="paper-week">{{ week }}</span>
+      {% if schedule %}
+      <span class="badge">{{ 'פורסם' if schedule.published else 'טיוטה' }}</span>
+      {% endif %}
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th class="corner">משמרת \\ יום</th>
+          {% for day in days %}
+          <th>
+            <div>יום {{ day }}</div>
+            <div class="date-sub">{{ date_labels[day] }}</div>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in shifts %}
+        <tr>
+          <th class="shift-label">{{ shift }}</th>
+          {% for day in days %}
+          <td class="assign-cell"
+              data-day="{{ day }}"
+              data-shift="{{ shift }}">
+            {% if edit_mode %}
+            <select multiple class="cell-select" size="3">
+              {% set selected = schedule.enriched[day][shift] | map(attribute='id') | list if schedule and schedule.enriched else [] %}
+              {% for emp in employees %}
+              <option value="{{ emp.id }}" {% if emp.id in selected %}selected{% endif %}>{{ emp.name }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+              {% if schedule and schedule.enriched %}
+                {% for person in schedule.enriched[day][shift] %}
+                <div class="cell-name">{{ person.name }}</div>
+                {% else %}
+                <span class="muted">—</span>
+                {% endfor %}
+              {% else %}
+              <span class="muted">—</span>
+              {% endif %}
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<div id="toast" class="toast" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const week = {{ week|tojson }};
+  document.getElementById('btn-publish')?.addEventListener('click', async () => {
+    if (!confirm('לפרסם את הסידור ב-WhatsApp?')) return;
+    try {
+      const r = await api('POST', '/api/schedules/' + encodeURIComponent(week) + '/publish', {});
+      toast('פורסם ל-' + (r.results||[]).length + ' עובדים');
+    } catch (e) { toast(e.message, true); }
+  });
+
+  document.getElementById('btn-save')?.addEventListener('click', async () => {
+    const grid = {};
+    document.querySelectorAll('.assign-cell').forEach(cell => {
+      const day = cell.dataset.day;
+      const shift = cell.dataset.shift;
+      grid[day] = grid[day] || {};
+      const sel = cell.querySelector('select');
+      grid[day][shift] = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
+    });
+    try {
+      const r = await api('PUT', '/api/schedules/' + encodeURIComponent(week), { grid });
+      const warns = (r.warnings || []).length;
+      toast(warns ? 'נשמר עם ' + warns + ' אזהרות' : 'נשמר בהצלחה');
+      if (warns) setTimeout(() => location.reload(), 700);
+    } catch (e) { toast(e.message, true); }
+  });
+</script>
+{% endblock %}
