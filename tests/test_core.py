@@ -82,6 +82,31 @@ def test_validate_flags_night_morning():
     assert any("לילה" in w and "שני" in w for w in warnings)
 
 
+def test_generate_covers_full_week_including_weekend():
+    """Schedule must include שישי and שבת, not only Sun–Thu."""
+    db.clear_mock_store()
+    seeded = sample_data.seed_sample_data(reset=True)
+    week = seeded["weekId"]
+    # Prefs include all 7 days for every nurse
+    for emp in employees.list_employees(active_only=True):
+        grid = preferences.get_preferences(emp["id"], week).get("grid") or {}
+        assert set(grid.keys()) == set(DAYS_HE), emp["name"]
+        assert "שישי" in grid and "שבת" in grid
+
+    result = scheduler.generate_schedule(week, nurses_per_shift=2, save=True)
+    g = result["grid"]
+    assert set(g.keys()) == set(DAYS_HE)
+    for day in DAYS_HE:
+        day_total = sum(len(g[day][s]) for s in SHIFTS_HE)
+        assert day_total > 0, f"day {day} has no assignments"
+    # Weekend specifically staffed
+    fri = sum(len(g["שישי"][s]) for s in SHIFTS_HE)
+    sat = sum(len(g["שבת"][s]) for s in SHIFTS_HE)
+    assert fri >= 2, f"Friday underfilled: {g['שישי']}"
+    assert sat >= 2, f"Saturday underfilled: {g['שבת']}"
+    assert scheduler.validate_schedule(g) == []
+
+
 def test_generate_respects_no_and_constraints():
     db.clear_mock_store()
     seeded = sample_data.seed_sample_data(reset=True)
@@ -90,7 +115,6 @@ def test_generate_respects_no_and_constraints():
     grid = result["grid"]
     warnings = scheduler.validate_schedule(grid)
 
-    # Hard constraint: no PREF_NO assignments
     prefs = {p["employeeId"]: p for p in preferences.list_preferences_for_week(week)}
     for day, shifts in grid.items():
         for shift, ids in shifts.items():
@@ -98,11 +122,9 @@ def test_generate_respects_no_and_constraints():
                 val = (prefs.get(eid, {}).get("grid") or {}).get(day, {}).get(shift)
                 assert val != "NO", f"{eid} assigned to NO slot {day} {shift}"
 
-    # Generated schedule must have zero hard violations
     assert warnings == [], warnings
     assert result.get("constraintViolations", []) == []
 
-    # No night → any shift next day; no duplicate shift types
     for emp in employees.list_employees(active_only=True):
         assigns = scheduler.assignments_for_employee(grid, emp["id"])
         types = [s for _, s in assigns]
@@ -271,7 +293,7 @@ def test_swap_whatsapp_full_flow():
     original = requested = None
     for i, (eid1, d1, s1) in enumerate(candidates):
         for eid2, d2, s2 in candidates[i + 1 :]:
-            if eid1 == eid2:
+            if eid1 == eid2 or (d1, s1) == (d2, s2):
                 continue
             errs = swaps.validate_swap_constraints(
                 week, eid1, eid2, {"day": d1, "shift": s1}, {"day": d2, "shift": s2}
@@ -357,6 +379,7 @@ if __name__ == "__main__":
     test_night_then_morning_illegal()
     test_same_shift_type_twice_illegal()
     test_validate_flags_night_morning()
+    test_generate_covers_full_week_including_weekend()
     test_generate_respects_no_and_constraints()
     test_generate_fairness_roughly_balanced()
     test_employee_crud()

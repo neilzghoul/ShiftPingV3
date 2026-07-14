@@ -21,8 +21,13 @@ def main() -> None:
     print(json.dumps({
         "weekId": week,
         "employees": len(result["employees"]),
+        "days": list(enriched["enriched"].keys()),
         "shiftCounts": sched.get("shiftCounts"),
         "warnings": enriched.get("warnings"),
+        "weekend": {
+            "שישי": enriched["enriched"].get("שישי"),
+            "שבת": enriched["enriched"].get("שבת"),
+        },
         "sampleDay": {
             day: enriched["enriched"][day]
             for day in list(enriched["enriched"])[:2]

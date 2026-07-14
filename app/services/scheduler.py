@@ -301,9 +301,10 @@ def generate_schedule(
             if pass_name == "fill":
                 log.append(f"מילוי נוסף: יום {day} {shift} ← {eid}")
 
-    # Primary pass: days in order, morning → evening → night
-    for day in DAYS_HE:
-        for shift in SHIFTS_HE:
+    # Primary pass: fill by shift type across ALL 7 days first
+    # (avoids burning capacity on Sun–Thu before Fri/Sat are considered).
+    for shift in SHIFTS_HE:
+        for day in DAYS_HE:
             before = len(grid[day][shift])
             try_place(day, shift, pass_name="primary")
             after = len(grid[day][shift])
@@ -314,11 +315,18 @@ def generate_schedule(
             elif after > before:
                 logger.info("Filled %s %s: %d nurse(s)", day, shift, after)
 
-    # Second pass: fill gaps without violating hard constraints
+    # Second pass: fill remaining gaps day-by-day (incl. שישי/שבת)
     for day in DAYS_HE:
         for shift in SHIFTS_HE:
             if len(grid[day][shift]) < nps:
                 try_place(day, shift, pass_name="fill")
+
+    # Coverage summary for all 7 days
+    for day in DAYS_HE:
+        filled = sum(len(grid[day][s]) for s in SHIFTS_HE)
+        target = nps * len(SHIFTS_HE)
+        log.append(f"כיסוי יום {day}: {filled}/{target}")
+        logger.info("Day coverage %s: %d/%d", day, filled, target)
 
     violations = validate_schedule(grid)
     for v in violations:
