@@ -158,10 +158,21 @@ def handle_inbound(from_raw: str, body: str) -> str:
     week = ctx.get("weekId") or next_week_id()
     lower = text.lower()
 
+    # Swap approval replies (proposed / chief)
+    if state in ("awaiting_swap_proposed", "awaiting_swap_chief"):
+        from app.services import swap_whatsapp
+
+        reply = swap_whatsapp.handle_swap_reply(emp, text, state, ctx)
+        if reply is not None:
+            return reply
+
     # Global commands
     if lower in ("עזרה", "help", "?", "הוראות"):
         set_conversation(phone, "collecting_prefs", {"weekId": week})
-        return preference_instructions(emp, week)
+        return preference_instructions(emp, week) + (
+            "\n\nלהחלפת משמרת:\n"
+            "אני רוצה להחליף בוקר בתאריך ראשון עם יעל לוי"
+        )
 
     if lower in ("סטטוס", "status", "מצב"):
         prefs = preferences.get_preferences(emp["id"], week)
@@ -179,11 +190,25 @@ def handle_inbound(from_raw: str, body: str) -> str:
     if lower in ("סידור", "schedule", "המשמרות שלי"):
         sched = scheduler.get_schedule(week)
         if not sched or not sched.get("published"):
-            # try current week
             sched = scheduler.get_schedule(current_week_id())
+        if not sched:
+            # fall back to any saved week schedule
+            from app.utils.dates import next_week_id as _nw
+
+            sched = scheduler.get_schedule(_nw()) or sched
         if not sched:
             return "עדיין אין סידור מפורסם."
         return format_personal_schedule(emp, sched)
+
+    # Swap request
+    from app.services import swap_whatsapp
+
+    if swap_whatsapp.looks_like_swap_request(text):
+        # Prefer published/current schedule week
+        sched = scheduler.get_schedule(week) or scheduler.get_schedule(current_week_id())
+        if sched:
+            week = sched.get("weekId") or week
+        return swap_whatsapp.initiate_swap_from_whatsapp(emp, text, week)
 
     # Preference lines
     parsed = parse_preference_message(text)

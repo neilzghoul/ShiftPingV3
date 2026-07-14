@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}החלפות משמרות · ShiftPing{% endblock %}
+{% block content %}
+<section class="hero-dash">
+  <div>
+    <p class="eyebrow">WhatsApp + אישור אחראית</p>
+    <h1>החלפות משמרות</h1>
+    <p class="lede">בקשות ממתינות, אישור ידני כגיבוי, ויומן ביקורת.</p>
+  </div>
+  <form method="get" action="/swaps" class="action-row">
+    <label style="display:grid;gap:0.25rem;font-weight:700;font-size:0.9rem">
+      שבוע
+      <select name="week" onchange="this.form.submit()">
+        <option value="">הכל</option>
+        {% for w in weeks %}
+        <option value="{{ w }}" {% if w == week %}selected{% endif %}>{{ w }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+</section>
+
+<section class="panel" style="margin-bottom:1.25rem">
+  <div class="panel-head">
+    <h2>ממתינות לאישור ({{ pending|length }})</h2>
+  </div>
+  {% if pending %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>שבוע</th>
+        <th>מבקש/ת</th>
+        <th>משמרת</th>
+        <th>עם</th>
+        <th>משמרת שלהם</th>
+        <th>סטטוס</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in pending %}
+      <tr>
+        <td>{{ s.week }}</td>
+        <td>{{ s.requester_name }}</td>
+        <td>יום {{ s.original_shift.day }} {{ s.original_shift.shift }}</td>
+        <td>{{ s.proposed_name }}</td>
+        <td>יום {{ s.requested_shift.day }} {{ s.requested_shift.shift }}</td>
+        <td><code>{{ s.status }}</code></td>
+        <td class="row-actions">
+          <button class="btn btn-sm btn-primary" data-approve="{{ s.id }}">אשר</button>
+          <button class="btn btn-sm btn-danger" data-reject="{{ s.id }}">דחה</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">אין בקשות ממתינות.</p>
+  {% endif %}
+</section>
+
+<section class="panel" style="margin-bottom:1.25rem">
+  <div class="panel-head"><h2>היסטוריה</h2></div>
+  {% if history %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>שבוע</th>
+        <th>מבקש/ת</th>
+        <th>עם</th>
+        <th>פירוט</th>
+        <th>סטטוס</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in history %}
+      <tr>
+        <td>{{ s.week }}</td>
+        <td>{{ s.requester_name }}</td>
+        <td>{{ s.proposed_name }}</td>
+        <td>
+          {{ s.original_shift.day }} {{ s.original_shift.shift }}
+          ↔
+          {{ s.requested_shift.day }} {{ s.requested_shift.shift }}
+        </td>
+        <td>{{ 'אושר' if s.status == 'approved' else 'נדחה' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">עדיין אין החלפות סגורות.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>יומן ביקורת</h2></div>
+  {% if audit %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>זמן</th>
+        <th>פעולה</th>
+        <th>החלפה</th>
+        <th>פרטים</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in audit %}
+      <tr>
+        <td dir="ltr">{{ a.at or a.createdAt }}</td>
+        <td>{{ a.action }}</td>
+        <td dir="ltr">{{ (a.swap_id or '')[:8] }}…</td>
+        <td>{{ a.detail }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">אין רשומות ביקורת עדיין.</p>
+  {% endif %}
+</section>
+<div id="toast" class="toast" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-approve]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('לאשר החלפה ידנית ולעדכן סידור?')) return;
+      try {
+        await api('POST', '/api/swaps/' + btn.dataset.approve + '/approve', {});
+        toast('אושר');
+        location.reload();
+      } catch (e) { toast(e.message, true); }
+    };
+  });
+  document.querySelectorAll('[data-reject]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('לדחות את ההחלפה?')) return;
+      try {
+        await api('POST', '/api/swaps/' + btn.dataset.reject + '/reject', { reason: 'נדחה ידנית' });
+        toast('נדחה');
+        location.reload();
+      } catch (e) { toast(e.message, true); }
+    };
+  });
+</script>
+{% endblock %}

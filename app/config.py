@@ -38,6 +38,9 @@ class Config:
     TIMEZONE: str = os.getenv("TIMEZONE", "Asia/Jerusalem")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # Chief nurse (WhatsApp approval) – E.164 phone or empty if using role=chief
+    CHIEF_NURSE_PHONE: str = os.getenv("CHIEF_NURSE_PHONE", "")
+
     # Scheduling defaults
     SHIFTS_PER_DAY: int = int(os.getenv("SHIFTS_PER_DAY", "3"))
     NURSES_PER_SHIFT: int = int(os.getenv("NURSES_PER_SHIFT", "2"))

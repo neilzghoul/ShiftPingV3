@@ -10,7 +10,7 @@ from app.utils.logging_setup import get_logger
 logger = get_logger(__name__)
 
 SAMPLE_EMPLOYEES = [
-    {"name": "נועה כהן", "gender": "female", "phone": "+972501111001", "notes": "ותיקה"},
+    {"name": "נועה כהן", "gender": "female", "phone": "+972501111001", "notes": "אחות אחראית", "role": "chief"},
     {"name": "יעל לוי", "gender": "female", "phone": "+972501111002", "notes": ""},
     {"name": "מיכל אברהם", "gender": "female", "phone": "+972501111003", "notes": ""},
     {"name": "דנה שמש", "gender": "female", "phone": "+972501111004", "notes": "מעדיפה בוקר"},
@@ -48,7 +48,11 @@ def seed_sample_data(*, reset: bool = False) -> dict:
     for i, raw in enumerate(SAMPLE_EMPLOYEES):
         existing = employees.find_by_phone(raw["phone"])
         if existing:
-            emp = existing
+            if raw.get("role") and existing.get("role") != raw.get("role"):
+                employees.update_employee(existing["id"], {"role": raw["role"]})
+                emp = employees.get_employee(existing["id"]) or existing
+            else:
+                emp = existing
         else:
             emp = employees.create_employee({**raw, "active": True})
             created.append(emp["id"])

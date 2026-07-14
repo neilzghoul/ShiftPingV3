@@ -5,6 +5,9 @@ Collections:
   preferences/{id}   – weekly preference docs (employeeId_weekId)
   schedules/{weekId} – generated/edited weekly schedules
   conversations/{phone} – WhatsApp conversation state
+  priority_history/{nurseId_week} – preference satisfaction scores
+  shift_swaps/{id} – swap requests
+  swap_audit/{id} – swap audit trail events
 """
 
 from __future__ import annotations
@@ -27,6 +30,9 @@ _mock_store: dict[str, dict[str, dict[str, Any]]] = {
     "preferences": {},
     "schedules": {},
     "conversations": {},
+    "priority_history": {},
+    "shift_swaps": {},
+    "swap_audit": {},
 }
 
 _firestore_client = None

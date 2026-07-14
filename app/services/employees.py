@@ -64,6 +64,7 @@ def create_employee(data: dict[str, Any]) -> dict[str, Any]:
         "phone": phone,
         "active": data.get("active", True),
         "notes": (data.get("notes") or "").strip(),
+        "role": data.get("role") or "nurse",
     }
     emp = db.create_doc("employees", payload)
     logger.info("Created employee %s (%s)", emp["id"], emp["name"])
@@ -94,6 +95,11 @@ def update_employee(emp_id: str, data: dict[str, Any]) -> dict[str, Any]:
         updates["active"] = bool(data["active"])
     if "notes" in data:
         updates["notes"] = (data.get("notes") or "").strip()
+    if "role" in data:
+        role = data["role"]
+        if role not in ("nurse", "chief"):
+            raise ValueError("role חייב להיות nurse או chief")
+        updates["role"] = role
 
     updated = db.update_doc("employees", emp_id, updates)
     assert updated is not None

@@ -1,16 +1,27 @@
-"""Schedule generation, editing, and publish API."""
+"""Schedule generation, editing, publish, and priority finalization API."""
 
 from __future__ import annotations
 
 from flask import Blueprint, jsonify, request
 
-from app.services import scheduler, whatsapp
+from app.services import priority, scheduler, whatsapp
 from app.utils.auth import require_admin
 from app.utils.dates import next_week_id
 from app.utils.logging_setup import get_logger
 
 logger = get_logger(__name__)
 bp = Blueprint("schedules", __name__)
+
+
+def _finalize_priority(week_id: str, grid: dict | None = None) -> list[dict]:
+    """Calculate and store priority_history after a schedule is ready."""
+    try:
+        rows = priority.record_priority_for_week(week_id, grid=grid)
+        logger.info("Recorded %d priority_history rows for week %s", len(rows), week_id)
+        return rows
+    except Exception:
+        logger.exception("Failed to record priority for week %s", week_id)
+        raise
 
 
 @bp.get("/api/schedules/<week_id>")
@@ -44,7 +55,12 @@ def api_generate_schedule():
             nurses_per_shift=int(nps) if nps else None,
             save=True,
         )
-        return jsonify({"schedule": scheduler.enrich_schedule(result)})
+        priority_rows = _finalize_priority(week, grid=result.get("grid"))
+        enriched = scheduler.enrich_schedule(result)
+        return jsonify({
+            "schedule": enriched,
+            "priorityHistory": priority_rows,
+        })
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception:
@@ -68,9 +84,13 @@ def api_update_schedule(week_id: str):
             notes=data.get("notes", ""),
             generationLog=data.get("generationLog", []),
         )
+        priority_rows = None
+        if saved.get("published") or data.get("finalizePriority"):
+            priority_rows = _finalize_priority(week_id, grid=grid)
         return jsonify({
             "schedule": scheduler.enrich_schedule(saved),
             "warnings": scheduler.validate_schedule(grid),
+            "priorityHistory": priority_rows,
         })
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -100,9 +120,35 @@ def api_patch_assignment(week_id: str):
 def api_publish_schedule(week_id: str):
     try:
         result = whatsapp.publish_schedule(week_id)
+        sched = scheduler.get_schedule(week_id)
+        priority_rows = _finalize_priority(week_id, grid=(sched or {}).get("grid"))
+        result["priorityHistory"] = priority_rows
         return jsonify(result)
     except LookupError as exc:
         return jsonify({"error": str(exc)}), 404
     except Exception:
         logger.exception("Publish failed")
         return jsonify({"error": "שגיאה בפרסום הסידור"}), 500
+
+
+@bp.post("/api/schedules/<week_id>/priority")
+@require_admin
+def api_record_priority(week_id: str):
+    """Manually (re)calculate priority_history for a week."""
+    try:
+        rows = _finalize_priority(week_id)
+        return jsonify({"week": week_id, "priorityHistory": rows})
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception:
+        logger.exception("Priority finalize failed")
+        return jsonify({"error": "שגיאה בחישוב עדיפות"}), 500
+
+
+@bp.get("/api/priority-history")
+@require_admin
+def api_priority_history():
+    week = request.args.get("week")
+    nurse_id = request.args.get("nurse_id")
+    rows = priority.list_priority_history(week=week or None, nurse_id=nurse_id or None)
+    return jsonify({"priorityHistory": rows, "week": week, "nurse_id": nurse_id})

@@ -367,6 +367,25 @@ dialog::backdrop { background: rgba(26,35,50,0.45); }
 }
 .toast.error { background: var(--danger); }
 
+.badge-sat {
+  display: inline-block;
+  min-width: 1.6rem;
+  text-align: center;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.4rem;
+  background: var(--sand);
+}
+.sat-0 { background: #f8e0dc; color: var(--danger); }
+.sat-1 { background: #fff1d6; color: var(--warn); }
+.sat-2 { background: #e8eef8; color: #2a4a7a; }
+.sat-3 { background: #d9f0e3; color: var(--ok); }
+.prio-score { font-family: var(--display); font-size: 1.1rem; }
+.prio-100 { color: var(--danger); }
+.prio-80 { color: var(--warn); }
+.prio-60 { color: #2a4a7a; }
+.prio-40 { color: var(--ok); }
+
 @media (max-width: 720px) {
   .topbar { flex-direction: column; align-items: flex-start; }
   .hero-dash { flex-direction: column; align-items: stretch; }

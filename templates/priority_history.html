@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}היסטוריית עדיפות · ShiftPing{% endblock %}
+{% block content %}
+<section class="hero-dash">
+  <div>
+    <p class="eyebrow">הוגנות בין שבועות</p>
+    <h1>היסטוריית עדיפות</h1>
+    <p class="lede">
+      אחרי כל סידור נספרות כמה העדפות WANT סופקו (0–3).
+      ציון גבוה יותר = ניסיון חזק יותר לספק העדפות בשבוע הבא.
+    </p>
+  </div>
+  <form method="get" action="/priority" class="action-row" style="align-items:end">
+    <label style="display:grid;gap:0.25rem;font-weight:700;font-size:0.9rem">
+      שבוע
+      <select name="week" onchange="this.form.submit()">
+        <option value="">כל השבועות</option>
+        {% for w in weeks %}
+        <option value="{{ w }}" {% if w == week %}selected{% endif %}>{{ w }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+</section>
+
+<section class="stat-row" aria-label="מקרא ציונים">
+  {% for sat, score in score_map.items() %}
+  <div class="stat">
+    <span class="stat-value">{{ score }}</span>
+    <span class="stat-label">{{ sat }} העדפות → ציון</span>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  {% if rows %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>שבוע</th>
+        <th>עובד/ת</th>
+        <th>העדפות שסופקו</th>
+        <th>ציון עדיפות</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.week }}</td>
+        <td>{{ r.nurse_name or r.nurse_id }}</td>
+        <td>
+          <span class="badge-sat sat-{{ r.preferences_satisfied }}">{{ r.preferences_satisfied }}</span>
+        </td>
+        <td>
+          <strong class="prio-score prio-{{ r.priority_score }}">{{ r.priority_score }}</strong>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">אין עדיין היסטוריית עדיפות. צרו סידור מהלוח הראשי — הציונים יישמרו אוטומטית.</p>
+  {% endif %}
+</section>
+{% endblock %}

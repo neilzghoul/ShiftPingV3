@@ -33,12 +33,14 @@ def create_app() -> Flask:
     from app.routes.pages import bp as pages_bp
     from app.routes.preferences import bp as preferences_bp
     from app.routes.schedules import bp as schedules_bp
+    from app.routes.swaps import bp as swaps_bp
     from app.routes.webhooks import bp as webhooks_bp
 
     app.register_blueprint(pages_bp)
     app.register_blueprint(employees_bp)
     app.register_blueprint(preferences_bp)
     app.register_blueprint(schedules_bp)
+    app.register_blueprint(swaps_bp)
     app.register_blueprint(webhooks_bp)
 
     @app.errorhandler(404)
